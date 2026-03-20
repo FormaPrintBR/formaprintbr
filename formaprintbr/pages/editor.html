@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor — FormaPrint BR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    body{background:#edeae4}
+    .editor-layout{display:grid;grid-template-columns:480px 1fr;min-height:100vh}
+    .form-col{background:var(--white);box-shadow:2px 0 24px rgba(0,0,0,.08);height:100vh;position:sticky;top:0;display:flex;flex-direction:column;overflow:hidden}
+    .fc-hd{background:var(--navy);padding:14px 22px;flex-shrink:0}
+    .fc-hd .logo{display:block;margin-bottom:12px}
+    .fc-body{flex:1;overflow-y:auto;scrollbar-width:thin}
+    .fc-ft{padding:12px 22px;border-top:1px solid var(--light);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;background:var(--white)}
+    /* Stepper */
+    .stepper{display:flex;gap:0}
+    .si{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+    .si:not(:last-child)::after{content:'';position:absolute;top:12px;left:50%;right:-50%;height:1.5px;background:rgba(255,255,255,.1);z-index:0}
+    .si.done:not(:last-child)::after{background:rgba(212,175,55,.5)}
+    .si-c{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:rgba(255,255,255,.35);position:relative;z-index:1;transition:all .2s}
+    .si.active .si-c{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+    .si.done .si-c{background:rgba(212,175,55,.2);color:var(--gold);border-color:rgba(212,175,55,.35)}
+    .si-l{font-size:.55rem;color:rgba(255,255,255,.25)}
+    .si.active .si-l{color:var(--gold)}
+    .si.done .si-l{color:rgba(255,255,255,.45)}
+    .prog{height:2px;background:rgba(255,255,255,.08);margin-top:10px;border-radius:1px;overflow:hidden}
+    .prog-f{height:100%;background:var(--gold);border-radius:1px;transition:width .35s ease}
+    /* Etapas */
+    .etapa{display:none;padding:20px 22px 8px;animation:etIn .2s ease}
+    .etapa.ativa{display:block}
+    @keyframes etIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+    .et-title{font-family:var(--display);font-size:1.15rem;color:var(--navy);margin-bottom:2px}
+    .et-sub{font-size:.78rem;color:var(--gray);margin-bottom:18px}
+    .fg2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+    .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+    /* Foto */
+    .foto-row{display:flex;align-items:center;gap:12px;border:1.5px solid var(--light);border-radius:10px;padding:12px 14px;background:var(--off);margin-bottom:16px;cursor:default;transition:border-color .2s}
+    .foto-row input{display:none}
+    .foto-av{width:48px;height:48px;border-radius:50%;border:2px solid var(--light);overflow:hidden;flex-shrink:0;background:var(--off);display:flex;align-items:center;justify-content:center;color:var(--gray);font-size:1.3rem}
+    .foto-av img{width:100%;height:100%;object-fit:cover;display:none}
+    .foto-info{flex:1}
+    .foto-info strong{display:block;font-size:.85rem;color:var(--navy);margin-bottom:1px}
+    .foto-info span{font-size:.72rem;color:var(--gray)}
+    .foto-btns{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+    .fb{display:flex;align-items:center;gap:4px;border:none;border-radius:6px;padding:6px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:var(--body);transition:all .2s}
+    .fb.camera{background:var(--navy);color:var(--white)}
+    .fb.camera:hover{background:var(--navy2)}
+    .fb.arquivo{background:var(--off);color:var(--navy);border:1.5px solid var(--light)}
+    .fb.arquivo:hover{background:var(--light)}
+    /* IA button */
+    .lrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+    .lrow label{font-size:.77rem;font-weight:700;color:var(--navy)}
+    .ia-btn{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#312E81,#4338CA);color:rgba(255,255,255,.9);font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:6px;border:none;cursor:pointer;transition:opacity .2s}
+    .ia-btn:hover{opacity:.85}
+    .ia-btn.busy{opacity:.6;cursor:not-allowed}
+    /* Blocos */
+    .bloco{background:var(--off);border:1px solid var(--light);border-radius:10px;padding:13px 13px 8px;margin-bottom:11px;position:relative;animation:blkIn .18s ease}
+    @keyframes blkIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+    .bloco-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .bloco-num{font-size:.65rem;font-weight:700;color:var(--gold2);text-transform:uppercase;letter-spacing:.06em}
+    .bloco-del{display:flex;align-items:center;gap:3px;background:none;border:none;color:#EF4444;font-size:.82rem;cursor:pointer;padding:3px 6px;border-radius:5px;transition:background .2s}
+    .bloco-del:hover{background:rgba(239,68,68,.1)}
+    .btn-add{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(27,42,74,.04);border:1.5px dashed rgba(27,42,74,.16);border-radius:8px;padding:9px;font-size:.82rem;font-weight:700;color:var(--navy);cursor:pointer;transition:all .2s;margin-bottom:6px}
+    .btn-add:hover{background:rgba(27,42,74,.08);border-color:var(--navy)}
+    /* Habilidades */
+    .hchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+    .hchip{display:flex;align-items:center;gap:4px;background:rgba(27,42,74,.08);border-radius:100px;padding:4px 10px;font-size:.76rem;font-weight:700;color:var(--navy)}
+    .hchip button{background:none;border:none;cursor:pointer;color:var(--gray);display:flex;padding:0}
+    .hchip button:hover{color:#EF4444}
+    .sug-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+    .sug-btn{font-size:.72rem;padding:4px 9px;border:1px solid var(--light);border-radius:100px;background:var(--white);color:var(--dark);cursor:pointer;transition:all .13s}
+    .sug-btn:hover{border-color:var(--navy)}
+    /* Login/preço */
+    .lp-card{background:var(--off);border-radius:10px;padding:14px;margin-top:18px}
+    .lp-login-row{display:flex;align-items:center;gap:8px;padding-bottom:11px;margin-bottom:11px;border-bottom:1px solid var(--light)}
+    .lp-preco-row{display:flex;align-items:center;justify-content:space-between}
+    .lp-val{font-family:var(--display);font-size:1.35rem;color:var(--gold);font-weight:700}
+    .fidel{font-size:.6rem;font-weight:700;background:var(--gold);color:var(--navy);padding:2px 7px;border-radius:100px;display:none;margin-left:6px}
+    /* Save */
+    .save-row{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--gray)}
+    .sdot{width:5px;height:5px;border-radius:50%;background:var(--light);transition:background .3s}
+    .sdot.ok{background:#16a34a}
+    .sdot.run{background:var(--gold);animation:pulse .6s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    /* Nav btns */
+    .nav-btns{display:flex;gap:8px}
+    .btn-ant{background:var(--off);border:1.5px solid var(--light);color:var(--dark);font-weight:700;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.85rem;transition:background .2s}
+    .btn-ant:hover{background:var(--light)}
+    .btn-prox{background:var(--navy);color:var(--white);font-weight:700;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.85rem;border:none;transition:background .2s;display:flex;align-items:center;gap:5px}
+    .btn-prox:hover{background:var(--navy2)}
+    .btn-pagar{background:var(--gold);color:var(--navy);font-weight:700;padding:9px 22px;border-radius:8px;cursor:pointer;font-family:var(--body);font-size:.9rem;border:none;transition:background .2s;display:flex;align-items:center;gap:5px}
+    .btn-pagar:hover{background:var(--gold2)}
+    /* Preview */
+    .preview-col{display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;gap:14px}
+    .preview-bar{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:620px}
+    .preview-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray)}
+    .zoom-row{display:flex;align-items:center;gap:6px;background:var(--white);border-radius:7px;padding:5px 10px;box-shadow:var(--shadow2)}
+    .zoom-row button{background:none;border:none;cursor:pointer;color:var(--navy);padding:2px 4px;font-size:.9rem}
+    .zv{font-size:.8rem;font-weight:700;color:var(--navy);min-width:32px;text-align:center}
+    .cv-outer{transform-origin:top center;transition:transform .2s ease}
+    .cv-shadow{box-shadow:0 12px 50px rgba(0,0,0,.18);border-radius:3px;overflow:hidden}
+    /* Currículo A4 */
+    #cvPreview{width:595px;min-height:842px;background:#fff;display:flex;font-family:'Lato',Arial,sans-serif;font-size:9px;line-height:1.45}
+    .cvp-sb{width:172px;background:#1B2A4A;flex-shrink:0;display:flex;flex-direction:column}
+    .cvp-sb-top{background:#243660;padding:24px 14px 18px}
+    .cvp-foto{width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 12px;border:2.5px solid rgba(212,175,55,.5);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:1.5rem}
+    .cvp-foto img{width:100%;height:100%;object-fit:cover}
+    .cvp-sg{padding:10px 14px;border-top:1px solid rgba(255,255,255,.08)}
+    .cvp-sl{display:block;font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#D4AF37;margin-bottom:6px}
+    .cvp-st{font-size:8px;color:rgba(255,255,255,.78);line-height:1.65;word-break:break-all;margin-bottom:3px}
+    .cvp-ski{margin-bottom:5px}
+    .cvp-skn{font-size:7.5px;color:rgba(255,255,255,.82);margin-bottom:2.5px}
+    .cvp-skb{background:rgba(255,255,255,.12);border-radius:2px;height:3px}
+    .cvp-skf{background:#D4AF37;border-radius:2px;height:3px;width:80%}
+    .cvp-id{font-size:7.5px;color:rgba(255,255,255,.78);margin-bottom:2px}
+    .cvp-main{flex:1;display:flex;flex-direction:column;min-width:0}
+    .cvp-mhd{background:#1B2A4A;padding:24px 20px 14px}
+    .cvp-nome{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:4px}
+    .cvp-cargo{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.65)}
+    .cvp-div{height:1.5px;background:#D4AF37;margin:0 20px}
+    .cvp-body{flex:1;padding:12px 20px}
+    .cvp-section{margin-bottom:13px}
+    .cvp-st-title{display:block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#1B2A4A;margin-bottom:8px;padding-bottom:3px;border-bottom:1.5px solid #D4AF37}
+    .cvp-obj{font-size:8.5px;line-height:1.6;color:#374151}
+    .cvp-exp{margin-bottom:8px;padding-left:8px;border-left:2px solid #D4AF37}
+    .cvp-exp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:5px;margin-bottom:1px}
+    .cvp-ec{font-size:8.5px;font-weight:700;color:#1B2A4A}
+    .cvp-ep{font-size:7px;color:#9CA3AF;white-space:nowrap;flex-shrink:0}
+    .cvp-ee{font-size:7.5px;font-weight:700;color:#B8960C;margin-bottom:2px}
+    .cvp-ed{font-size:7.5px;line-height:1.5;color:#4B5563}
+    .cvp-fi{margin-bottom:7px}
+    .cvp-fc{font-size:8.5px;font-weight:700;color:#1B2A4A}
+    .cvp-fo{font-size:7.5px;color:#6B7280}
+    .cvp-wm{text-align:center;font-size:6px;color:rgba(0,0,0,.13);padding:7px}
+    /* Modais */
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;align-items:center;justify-content:center;padding:20px}
+    .modal-bg.on{display:flex}
+    .m-box{background:var(--white);border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:mIn .2s ease}
+    @keyframes mIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+    /* Modal Câmera */
+    .cam-circle{width:220px;height:220px;border-radius:50%;overflow:hidden;border:3px solid var(--gold);position:relative;cursor:move;background:#000;flex-shrink:0}
+    #camVideo{width:100%;height:100%;object-fit:cover}
+    /* Modal IA */
+    .ia-m-hd{background:linear-gradient(135deg,#1e1b4b,#312E81);padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+    .ia-m-hd h4{color:var(--white);font-family:var(--body);font-size:.88rem;font-weight:700}
+    .ia-m-hd button{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;display:flex}
+    .ia-spin{width:36px;height:36px;border:3px solid var(--light);border-top-color:#6366f1;border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 12px}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .ia-res-box{background:var(--off);border-radius:8px;padding:12px 14px;font-size:.86rem;color:var(--dark);line-height:1.65;border-left:3px solid #6366f1;margin-bottom:12px}
+    /* Premium banner */
+    .prem-banner{background:linear-gradient(135deg,#1e1b4b,#312E81);border-radius:12px;padding:14px 16px;margin-bottom:18px;cursor:pointer;transition:opacity .2s;border:1px solid rgba(99,102,241,.3)}
+    .prem-banner:hover{opacity:.92}
+    /* A4 indicator */
+    .a4-ind{width:100%;max-width:620px;display:flex;align-items:center;justify-content:space-between;font-size:.7rem;color:var(--gray)}
+    .a4-bar-bg{flex:1;height:4px;background:var(--light);border-radius:2px;margin:0 8px;overflow:hidden}
+    .a4-bar-fill{height:100%;border-radius:2px;transition:width .4s,background .3s}
+
+    @media(max-width:940px){
+      .editor-layout{grid-template-columns:1fr}
+      .form-col{height:auto;position:static;overflow:visible}
+      .fc-body{overflow:visible}
+      .preview-col{padding:16px 10px 36px}
+      #cvPreview{width:100%;max-width:595px}
+      .cv-outer{transform:none!important}
+    }
+    @media(max-width:520px){.fg2,.fg3{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<!-- Modal Câmera 3×4 -->
+<div class="modal-bg" id="mCam">
+  <div class="m-box" style="width:320px">
+    <div style="background:var(--navy);padding:13px 18px;display:flex;justify-content:space-between;align-items:center">
+      <h4 style="color:var(--white);font-family:var(--body);font-size:.88rem;font-weight:700">Tirar foto 3x4</h4>
+      <button onclick="closeCam()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;display:flex;font-size:1.1rem"><i class="ph ph-x"></i></button>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div class="cam-circle" id="camOuter">
+        <video id="camVideo" autoplay playsinline muted></video>
+        <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+          <div style="width:80px;height:104px;border:1.5px dashed rgba(212,175,55,.6);border-radius:50%"></div>
+        </div>
+        <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:8px;color:rgba(255,255,255,.65)">Centralize seu rosto</div>
+      </div>
+      <canvas id="camCanvas" style="display:none"></canvas>
+      <p style="font-size:.72rem;color:var(--gray);text-align:center;margin:0">Formato 3x4 — enquadre o rosto na moldura</p>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px">
+      <button class="btn-ant" onclick="closeCam()" style="flex:1;text-align:center">Cancelar</button>
+      <button class="btn-pagar" onclick="tirarFoto()" style="flex:1;justify-content:center"><i class="ph-bold ph-camera"></i> Tirar foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal IA campo único -->
+<div class="modal-bg" id="mIA">
+  <div class="m-box" style="width:480px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="ia-m-hd">
+      <h4 id="iaTitulo">Melhorando com IA</h4>
+      <button onclick="closeIA()"><i class="ph ph-x"></i></button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px" id="iaBody">
+      <div id="iaLoading" style="text-align:center;padding:28px"><div class="ia-spin"></div><p style="font-size:.85rem;color:var(--gray)">Analisando e melhorando...</p></div>
+      <div id="iaResultado" style="display:none"></div>
+    </div>
+    <div style="padding:0 18px 16px;display:flex;gap:8px" id="iaFt" style="display:none">
+      <button class="btn-ant" onclick="closeIA()" style="flex:1;text-align:center">Ignorar</button>
+      <button class="btn-pagar" onclick="applyIA()" style="flex:1;justify-content:center"><i class="ph-bold ph-check"></i> Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Premium IA -->
+<div class="modal-bg" id="mPremium">
+  <div class="m-box" style="width:520px;max-height:86vh;display:flex;flex-direction:column">
+    <div style="background:linear-gradient(135deg,#1e1b4b,#312E81);padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <h4 style="color:var(--white);font-family:var(--body);font-size:.95rem;font-weight:700;margin-bottom:3px"><i class="ph ph-lightning" style="margin-right:5px"></i>Modo Premium — IA gera seu curriculo</h4>
+        <p style="color:rgba(255,255,255,.5);font-size:.74rem">Escreva um resumo e a IA preenche tudo automaticamente</p>
+      </div>
+      <button onclick="closePremium()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;display:flex;font-size:1.1rem;flex-shrink:0"><i class="ph ph-x"></i></button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:18px" id="premBody">
+      <div id="premInput">
+        <div class="form-group"><label>Seu nome e cargo que busca</label><input type="text" id="pm-nc" placeholder="Ex: Maria Silva, busco vaga de Auxiliar Administrativo"></div>
+        <div class="form-group"><label>Conta sobre voce (pode escrever como fala)</label><textarea id="pm-res" rows="5" placeholder="Ex: Tenho 25 anos, moro em São Luis, trabalhei 2 anos numa loja no caixa e atendimento, fiz o ensino medio no CEFET, sou organizada..." style="min-height:100px"></textarea></div>
+        <div class="form-group"><label>Cidade e estado</label><input type="text" id="pm-loc" placeholder="São Luis, MA"></div>
+        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;padding:11px 13px;font-size:.76rem;color:#4338CA;line-height:1.6"><strong>Como funciona:</strong> A IA cria seu objetivo, organiza experiencias e sugere habilidades. Voce revisa e ajusta depois.</div>
+      </div>
+      <div id="premLoading" style="display:none;text-align:center;padding:32px"><div class="ia-spin" style="border-top-color:#6366f1"></div><p style="font-size:.86rem;color:var(--gray)">Gerando seu curriculo completo...</p></div>
+      <div id="premResult" style="display:none"></div>
+    </div>
+    <div style="padding:0 18px 16px;display:flex;gap:8px" id="premFt">
+      <button class="btn-ant" onclick="closePremium()" style="flex:1;text-align:center">Cancelar</button>
+      <button class="btn-pagar" onclick="gerarPremium()" id="btnGerar" style="flex:1;justify-content:center"><i class="ph-bold ph-lightning"></i> Gerar curriculo com IA</button>
+    </div>
+  </div>
+</div>
+
+<div class="editor-layout">
+
+  <!-- FORMULÁRIO -->
+  <aside class="form-col">
+    <div class="fc-hd">
+      <a href="../index.html" class="logo"><span class="logo-forma">Forma</span><span class="logo-print">Print</span><span class="logo-br"> BR</span></a>
+      <div class="stepper" id="stepper">
+        <div class="si active" data-s="1"><div class="si-c">1</div><span class="si-l">Dados</span></div>
+        <div class="si" data-s="2"><div class="si-c">2</div><span class="si-l">Objetivo</span></div>
+        <div class="si" data-s="3"><div class="si-c">3</div><span class="si-l">Exp.</span></div>
+        <div class="si" data-s="4"><div class="si-c">4</div><span class="si-l">Formacao</span></div>
+        <div class="si" data-s="5"><div class="si-c">5</div><span class="si-l">Habilidades</span></div>
+      </div>
+      <div class="prog"><div class="prog-f" id="progF" style="width:20%"></div></div>
+    </div>
+
+    <div class="fc-body">
+
+      <!-- ETAPA 1 -->
+      <div class="etapa ativa" id="et-1">
+        <div class="et-title">Dados pessoais</div>
+        <div class="et-sub">Informacoes de contato e identificacao</div>
+        <div class="prem-banner" onclick="openPremium()">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#a5b4fc;flex-shrink:0"><i class="ph ph-lightning"></i></div>
+            <div><div style="color:var(--white);font-weight:700;font-size:.86rem;margin-bottom:1px">Modo Premium — IA gera seu curriculo</div><div style="color:rgba(255,255,255,.5);font-size:.72rem">Escreva um resumo e a IA preenche tudo</div></div>
+          </div>
+          <div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);color:#c7d2fe;font-size:.74rem;font-weight:700;padding:5px 11px;border-radius:6px"><i class="ph ph-arrow-right"></i> Usar este modo</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.72rem;color:var(--gray);margin-bottom:16px"><div style="flex:1;height:1px;background:var(--light)"></div>ou preencha manualmente<div style="flex:1;height:1px;background:var(--light)"></div></div>
+        <!-- Foto -->
+        <div class="foto-row" id="fotoRow">
+          <input type="file" id="fotoInput" accept="image/*" onchange="openCrop(this)">
+          <div class="foto-av" id="fotoAv"><i class="ph ph-user"></i><img id="fotoImg" src="" alt=""></div>
+          <div class="foto-info"><strong id="fotoTitle">Adicionar foto</strong><span id="fotoSub">Foto 3x4 pela camera ou arquivo</span></div>
+          <div class="foto-btns">
+            <button class="fb camera" onclick="openCam()"><i class="ph ph-camera"></i> Camera</button>
+            <button class="fb arquivo" onclick="document.getElementById('fotoInput').click()"><i class="ph ph-folder-open"></i> Arquivo</button>
+          </div>
+        </div>
+        <div class="fg2">
+          <div class="form-group"><label>Nome completo *</label><input type="text" id="f-nome" placeholder="Maria da Silva" oninput="auto();prev()"></div>
+          <div class="form-group"><label>Cargo desejado *</label><input type="text" id="f-cargo" placeholder="Auxiliar Administrativo" oninput="auto();prev()"></div>
+        </div>
+        <div class="fg2">
+          <div class="form-group"><label>Telefone/WhatsApp</label><input type="tel" id="f-tel" placeholder="(98) 99999-0000" oninput="auto();prev()"></div>
+          <div class="form-group"><label>Email</label><input type="email" id="f-email" placeholder="seu@email.com" oninput="auto();prev()"></div>
+        </div>
+        <div class="fg3">
+          <div class="form-group"><label>Cidade</label><input type="text" id="f-cidade" placeholder="São Luis" oninput="auto();prev()"></div>
+          <div class="form-group"><label>Estado</label><input type="text" id="f-estado" placeholder="MA" maxlength="2" oninput="auto();prev()"></div>
+          <div class="form-group"><label>LinkedIn</label><input type="text" id="f-linkedin" placeholder="linkedin.com/in/..." oninput="auto()"></div>
+        </div>
+      </div>
+
+      <!-- ETAPA 2 -->
+      <div class="etapa" id="et-2">
+        <div class="et-title">Objetivo profissional</div>
+        <div class="et-sub">O que voce busca na proxima oportunidade</div>
+        <div class="form-group">
+          <div class="lrow"><label>Objetivo / Resumo *</label><button class="ia-btn" onclick="iaField('objetivo')"><i class="ph ph-lightbulb"></i> Melhorar com IA</button></div>
+          <textarea id="f-objetivo" rows="5" placeholder="Ex: Profissional dedicada com experiencia em atendimento, buscando oportunidade como Auxiliar Administrativo..." oninput="auto();prev()"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Area de atuacao</label>
+          <select id="f-area" onchange="auto();renderSug()">
+            <option value="">Selecione...</option>
+            <option>Administrativo</option><option>Atendimento ao Cliente</option><option>Comercio e Varejo</option>
+            <option>Construcao Civil</option><option>Saude</option><option>Logistica e Transporte</option>
+            <option>Tecnologia da Informacao</option><option>Alimentacao e Gastronomia</option>
+            <option>Beleza e Estetica</option><option>Educacao</option><option>Seguranca</option><option>Servicos Gerais</option>
+          </select>
+        </div>
+        <div style="background:rgba(212,175,55,.07);border:1px solid rgba(212,175,55,.18);border-radius:9px;padding:10px 13px;font-size:.77rem;color:var(--dark);line-height:1.6;margin-top:10px">
+          <i class="ph ph-info" style="color:var(--gold2);margin-right:4px"></i>
+          <strong>Dica:</strong> Mencione o cargo e 1-2 qualidades que te diferenciam. Seja direto.
+        </div>
+      </div>
+
+      <!-- ETAPA 3 -->
+      <div class="etapa" id="et-3">
+        <div class="et-title">Experiencias profissionais</div>
+        <div class="et-sub">As mais recentes primeiro</div>
+        <div id="expContainer"></div>
+        <button class="btn-add" onclick="addExp()"><i class="ph ph-plus"></i> Adicionar experiencia</button>
+        <div style="background:rgba(27,42,74,.04);border-radius:9px;padding:10px 12px;font-size:.75rem;color:var(--gray);margin-top:8px;line-height:1.6">Sem experiencia formal? Inclua bicos, voluntariado ou ajuda em empresa da familia.</div>
+      </div>
+
+      <!-- ETAPA 4 -->
+      <div class="etapa" id="et-4">
+        <div class="et-title">Formacao academica</div>
+        <div class="et-sub">Ensino medio, tecnico, cursos e certificados</div>
+        <div id="formContainer"></div>
+        <button class="btn-add" onclick="addForm()"><i class="ph ph-plus"></i> Adicionar formacao</button>
+        <div style="background:rgba(27,42,74,.04);border-radius:9px;padding:10px 12px;font-size:.75rem;color:var(--gray);margin-top:8px;line-height:1.6">Inclua SENAI, SENAC, EAD, cursos profissionalizantes e certificados relevantes.</div>
+      </div>
+
+      <!-- ETAPA 5 -->
+      <div class="etapa" id="et-5">
+        <div class="et-title">Habilidades e idiomas</div>
+        <div class="et-sub">Competencias tecnicas e comportamentais</div>
+        <div class="form-group">
+          <label>Habilidade <span style="font-size:.68rem;color:var(--gray)">(Enter ou virgula)</span></label>
+          <input type="text" id="f-hab" placeholder="Ex: Pacote Office, Vendas, Atendimento..." onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addHab()}">
+          <div class="hchips" id="hchips"></div>
+        </div>
+        <div>
+          <div style="font-size:.74rem;font-weight:700;color:var(--navy);margin-bottom:6px">Sugestoes para sua area:</div>
+          <div class="sug-wrap" id="sugestoes"></div>
+        </div>
+        <div class="form-group" style="margin-top:16px">
+          <label>Idiomas</label>
+          <input type="text" id="f-idiomas" placeholder="Portugues (Nativo), Ingles (Basico)" oninput="auto();prev()">
+        </div>
+        <div class="form-group">
+          <div class="lrow">
+            <label>Certificacoes / Cursos extras</label>
+            <button class="ia-btn" onclick="iaField('certs')"><i class="ph ph-lightbulb"></i> IA sugere</button>
+          </div>
+          <input type="text" id="f-certs" placeholder="Ex: NR-10 (2023), Excel Intermediario" oninput="auto();prev()">
+        </div>
+        <!-- Login/preço -->
+        <div class="lp-card">
+          <div class="lp-login-row">
+            <i class="ph ph-user-circle" style="font-size:1.2rem;color:var(--gray)"></i>
+            <span id="loginNome" style="font-size:.82rem;font-weight:700;color:var(--dark)">Entrar para desconto de fidelidade</span>
+            <a href="login.html" id="loginBtn" style="margin-left:auto;font-size:.74rem;font-weight:700;color:var(--gold2)">Entrar</a>
+          </div>
+          <div class="lp-preco-row">
+            <div>
+              <div style="font-size:.66rem;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Valor</div>
+              <div style="display:flex;align-items:center"><span class="lp-val" id="precoVal">R$ 2,50</span><span class="fidel" id="fidelChip">Fidelidade</span></div>
+            </div>
+            <div style="font-size:.68rem;color:var(--gray);text-align:right;line-height:1.5">Cores e fontes<br>personalizaveis apos pagar</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="fc-ft">
+      <div class="save-row"><div class="sdot" id="sdot"></div><span id="stxt">Rascunho</span></div>
+      <div class="nav-btns">
+        <button class="btn-ant"   id="btnAnt"   onclick="etAnt()"  style="display:none">Anterior</button>
+        <button class="btn-prox"  id="btnProx"  onclick="etProx()">Proximo <i class="ph-bold ph-arrow-right"></i></button>
+        <button class="btn-pagar" id="btnPagar" onclick="irPagar()" style="display:none">
+          <i class="ph-bold ph-credit-card"></i> Pagar R$<span id="precoBtn">2,50</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- PRÉVIA -->
+  <main class="preview-col">
+    <div class="preview-bar">
+      <span class="preview-lbl">Previa A4 em tempo real</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="a4-ind">
+          <span>A4:</span>
+          <div class="a4-bar-bg"><div id="a4fill" style="height:100%;border-radius:2px;background:#16a34a;width:25%;transition:width .4s,background .3s"></div></div>
+          <span id="a4pct">~25%</span>
+        </div>
+        <div class="zoom-row">
+          <button onclick="z(-8)"><i class="ph ph-minus"></i></button>
+          <span class="zv" id="zvTxt">56%</span>
+          <button onclick="z(+8)"><i class="ph ph-plus"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cv-outer" id="cvOuter">
+      <div class="cv-shadow">
+        <div id="cvPreview">
+          <div class="cvp-sb">
+            <div class="cvp-sb-top"><div class="cvp-foto" id="cvFoto"><i class="ph ph-user"></i></div></div>
+            <div class="cvp-sg"><span class="cvp-sl">Contato</span><div id="cvContato"></div></div>
+            <div class="cvp-sg"><span class="cvp-sl">Habilidades</span><div id="cvHabs"></div></div>
+            <div class="cvp-sg" id="cvIdiomasSec" style="display:none"><span class="cvp-sl">Idiomas</span><div id="cvIdiomas"></div></div>
+            <div class="cvp-sg" id="cvCertsSec" style="display:none"><span class="cvp-sl">Certificacoes</span><div id="cvCerts"></div></div>
+          </div>
+          <div class="cvp-main">
+            <div class="cvp-mhd"><div class="cvp-nome" id="cvNome">Seu Nome Completo</div><div class="cvp-cargo" id="cvCargo">Cargo Desejado</div></div>
+            <div class="cvp-div"></div>
+            <div class="cvp-body">
+              <div class="cvp-section"><span class="cvp-st-title">Objetivo Profissional</span><div class="cvp-obj" id="cvObj">Preencha o formulario para ver a previa.</div></div>
+              <div class="cvp-section"><span class="cvp-st-title">Experiencias Profissionais</span><div id="cvExps"><div style="font-size:8px;color:#9CA3AF;font-style:italic">Adicione na etapa 3.</div></div></div>
+              <div class="cvp-section"><span class="cvp-st-title">Formacao Academica</span><div id="cvForms"><div style="font-size:8px;color:#9CA3AF;font-style:italic">Adicione na etapa 4.</div></div></div>
+            </div>
+            <div class="cvp-wm">formaprintbr.com.br</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp }  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const cfg = {
+    apiKey:            "AIzaSyBH-QWEWiANHgDYbCCSlNfAyr-FtOuW8jw",
+    authDomain:        "formaprint-br.firebaseapp.com",
+    projectId:         "formaprint-br",
+    storageBucket:     "formaprint-br.firebasestorage.app",
+    messagingSenderId: "483317627076",
+    appId:             "1:483317627076:web:0cf9ed3165085f7671b191"
+  };
+  const app  = initializeApp(cfg);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  window.saveFB = async (d) => {
+    if (!auth.currentUser) return;
+    try { await setDoc(doc(db,'curriculos',auth.currentUser.uid),{...d,em:new Date().toISOString()},{merge:true}); } catch(e){}
+  };
+
+  onAuthStateChanged(auth, async (u) => {
+    if (u) {
+      localStorage.setItem('fpbr_email_usuario', u.email||'');
+      localStorage.setItem('fpbr_nome_usuario',  u.displayName||u.email.split('@')[0]);
+      localStorage.setItem('fpbr_uid', u.uid);
+      document.getElementById('loginNome').textContent = u.displayName || u.email.split('@')[0];
+      document.getElementById('loginBtn').textContent  = 'Sair';
+      document.getElementById('loginBtn').href         = '#';
+      document.getElementById('loginBtn').onclick      = () => { auth.signOut(); location.reload(); return false; };
+      if (db) {
+        try {
+          const s = await getDoc(doc(db,'users',u.uid));
+          if (s.exists() && s.data().totalCompras > 0) {
+            document.getElementById('precoVal').textContent = 'R$ 1,50';
+            document.getElementById('precoBtn').textContent = '1,50';
+            document.getElementById('fidelChip').style.display = 'inline-block';
+            localStorage.setItem('fpbr_recorrente','true');
+          }
+        } catch(e) {}
+      }
+    }
+  });
+</script>
+
+<script>
+  // ── Anthropic API Key ─────────────────────────────────────
+  const ANTHROPIC_KEY = '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';
+
+  // ── Estado global ─────────────────────────────────────────
+  let et=1; const TT=5;
+  let zm=56; let foto64=''; let fotoSrc='';
+  let habs=[]; let eC=0; let fC=0;
+  let saveT=null; let iaCb=null; let iaRes=''; let premData=null;
+  let camStream=null; let cImg=null; let cOx=0; let cOy=0; let cDx=0; let cDy=0; let cDrag=false;
+
+  const SUGE = {
+    'Administrativo':['Pacote Office','Excel Avancado','Word','Organizacao','Atendimento'],
+    'Atendimento ao Cliente':['Comunicacao','Empatia','Proatividade','CRM','Trabalho em Equipe'],
+    'Comercio e Varejo':['Vendas','Negociacao','Caixa','Estoque','Metas'],
+    'Saude':['Enfermagem','BLS','Medicacao','Cuidados com Paciente'],
+    'Tecnologia da Informacao':['JavaScript','Python','SQL','Git','Linux','HTML','CSS'],
+    'default':['Trabalho em Equipe','Proatividade','Comunicacao','Organizacao','Responsabilidade','Pontualidade']
+  };
+
+  // ── Zoom ──────────────────────────────────────────────────
+  function z(d){zm=Math.max(28,Math.min(100,zm+d));document.getElementById('cvOuter').style.transform=`scale(${zm/100})`;document.getElementById('zvTxt').textContent=zm+'%'}
+  z(0);
+
+  // ── Stepper ───────────────────────────────────────────────
+  function goEt(n){
+    document.getElementById(`et-${et}`).classList.remove('ativa');
+    const ant=document.querySelector(`.si[data-s="${et}"]`);
+    ant.classList.remove('active');
+    if(n>et)ant.classList.add('done');else ant.classList.remove('done');
+    et=n;
+    document.getElementById(`et-${et}`).classList.add('ativa');
+    document.querySelector(`.si[data-s="${et}"]`).classList.add('active');
+    document.getElementById('progF').style.width=`${(et/TT)*100}%`;
+    document.getElementById('btnAnt').style.display=et>1?'block':'none';
+    document.getElementById('btnProx').style.display=et<TT?'flex':'none';
+    document.getElementById('btnPagar').style.display=et===TT?'flex':'none';
+    if(et===5)renderSug();
+    document.querySelector('.fc-body').scrollTo({top:0,behavior:'smooth'});
+  }
+  function etProx(){
+    if(et===1){
+      if(!g('f-nome')){toast('Preencha seu nome.','error');foc('f-nome');return}
+      if(!g('f-cargo')){toast('Preencha o cargo desejado.','error');foc('f-cargo');return}
+    }
+    if(et===2&&!g('f-objetivo')){toast('Preencha o objetivo profissional.','error');foc('f-objetivo');return}
+    if(et<TT)goEt(et+1);
+  }
+  function etAnt(){if(et>1)goEt(et-1)}
+  function irPagar(){
+    if(!g('f-nome')){toast('Preencha o nome (etapa 1).','error');goEt(1);return}
+    salvarLocal();window.location.href='pagamento.html';
+  }
+
+  // ── Câmera 3×4 ────────────────────────────────────────────
+  async function openCam(){
+    document.getElementById('mCam').classList.add('on');
+    try{
+      camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:480},height:{ideal:640}}});
+      document.getElementById('camVideo').srcObject=camStream;
+    }catch(e){closeCam();document.getElementById('fotoInput').click();}
+  }
+  function closeCam(){document.getElementById('mCam').classList.remove('on');if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}}
+  function tirarFoto(){
+    const v=document.getElementById('camVideo'),cv=document.getElementById('camCanvas');
+    const W=300,H=400;cv.width=W;cv.height=H;
+    const ctx=cv.getContext('2d');
+    const vw=v.videoWidth,vh=v.videoHeight;
+    const ratio=Math.min(vw/W,vh/H);
+    const sw=W*ratio,sh=H*ratio,sx=(vw-sw)/2,sy=(vh-sh)/2;
+    ctx.drawImage(v,sx,sy,sw,sh,0,0,W,H);
+    fotoSrc=cv.toDataURL('image/jpeg',.92);foto64=fotoSrc;
+    closeCam();applyFotoUI();auto();
+  }
+
+  // Crop de arquivo
+  function openCrop(inp){
+    const f=inp.files[0];if(!f)return;inp.value='';
+    const rd=new FileReader();
+    rd.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{cImg=img;cOx=0;cOy=0;fotoSrc=e.target.result;setupCrop();document.getElementById('mCam').classList.add('on');
+        // Substituir video por canvas para crop
+        const v=document.getElementById('camVideo');v.style.display='none';
+        const cv=document.getElementById('camCanvas');cv.style.display='block';
+        cv.style.width='220px';cv.style.height='220px';cv.width=220;cv.height=220;
+        cv.style.position='absolute';cv.style.top='0';cv.style.left='0';
+        document.getElementById('camOuter').appendChild(cv);
+        document.getElementById('camOuter').style.cursor='move';
+        drawCrop();
+        // Mudar botão tirar foto para confirmar
+        document.querySelector('#mCam .btn-pagar').innerHTML='<i class="ph-bold ph-check"></i> Usar foto';
+        document.querySelector('#mCam .btn-pagar').onclick=confirmarCrop;
+      };img.src=e.target.result;
+    };rd.readAsDataURL(f);
+  }
+  function setupCrop(){
+    const cv=document.getElementById('camCanvas');
+    cv.onmousedown=e=>{cDrag=true;cDx=e.clientX-cOx;cDy=e.clientY-cOy};
+    cv.ontouchstart=e=>{cDrag=true;const t=e.touches[0];cDx=t.clientX-cOx;cDy=t.clientY-cOy};
+    document.onmouseup=document.ontouchend=()=>{cDrag=false};
+    document.onmousemove=e=>{if(!cDrag)return;cOx=e.clientX-cDx;cOy=e.clientY-cDy;drawCrop()};
+    document.ontouchmove=e=>{if(!cDrag)return;const t=e.touches[0];cOx=t.clientX-cDx;cOy=t.clientY-cDy;drawCrop()};
+  }
+  function drawCrop(){
+    if(!cImg)return;
+    const cv=document.getElementById('camCanvas'),ctx=cv.getContext('2d');
+    const S=220,sc=1;
+    ctx.clearRect(0,0,S,S);
+    const w=cImg.width*sc,h=cImg.height*sc,x=(S-w)/2+cOx,y=(S-h)/2+cOy;
+    ctx.drawImage(cImg,x,y,w,h);
+  }
+  function confirmarCrop(){
+    const cv=document.getElementById('camCanvas');
+    foto64=cv.toDataURL('image/jpeg',.92);fotoSrc=foto64;
+    const v=document.getElementById('camVideo');v.style.display='block';
+    cv.style.display='none';
+    document.querySelector('#mCam .btn-pagar').innerHTML='<i class="ph-bold ph-camera"></i> Tirar foto';
+    document.querySelector('#mCam .btn-pagar').onclick=tirarFoto;
+    closeCam();applyFotoUI();auto();
+  }
+
+  function applyFotoUI(){
+    const img=document.getElementById('fotoImg');img.src=foto64;img.style.display='block';
+    document.querySelector('#fotoAv i').style.display='none';
+    document.getElementById('fotoTitle').textContent='Foto adicionada';
+    document.getElementById('fotoSub').textContent='Clique em Arquivo para trocar';
+    document.getElementById('cvFoto').innerHTML=`<img src="${foto64}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">`;
+    prev();
+  }
+
+  // ── IA ────────────────────────────────────────────────────
+  async function callIA(prompt,maxT=300){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxT,messages:[{role:'user',content:prompt}]})
+    });
+    if(!r.ok)throw new Error('API '+r.status);
+    const d=await r.json();
+    return d.content?.[0]?.text?.trim()||'';
+  }
+
+  async function iaField(campo){
+    document.getElementById('iaTitulo').textContent=campo==='objetivo'?'Melhorando objetivo com IA':'IA sugere certificacoes';
+    document.getElementById('iaLoading').style.display='block';
+    document.getElementById('iaResultado').style.display='none';
+    document.getElementById('iaFt').style.display='none';
+    document.getElementById('mIA').classList.add('on');
+    const nome=g('f-nome')||'Profissional',cargo=g('f-cargo')||'cargo',area=g('f-area')||'',atual=g(campo==='objetivo'?'f-objetivo':'f-certs')||'';
+    let prompt='';
+    if(campo==='objetivo'){
+      prompt=`Melhore o objetivo profissional deste candidato para curriculo brasileiro.\nCandidato: ${nome} | Cargo: ${cargo} | Area: ${area}\nAtual: "${atual}"\nRegras: 1a pessoa, max 3 linhas, simples, mencione o cargo. Apenas o texto.`;
+    }else{
+      prompt=`Sugira 3 certificacoes ou cursos relevantes para a area de ${area||cargo} no formato: Nome (Instituicao, Ano). Separados por virgula. Apenas as sugestoes.`;
+    }
+    try{
+      iaRes=await callIA(prompt,200);
+      iaCb=txt=>{setV(campo==='objetivo'?'f-objetivo':'f-certs',txt);prev();auto()};
+      showIARes(iaRes);
+    }catch(e){
+      const fb=campo==='objetivo'?`Profissional com experiencia na area de ${area||cargo}, buscando oportunidade como ${cargo} onde possa aplicar minha dedicacao e desenvolver minhas habilidades.`:'';
+      iaRes=fb;iaCb=txt=>{setV(campo==='objetivo'?'f-objetivo':'f-certs',txt);prev();auto()};
+      showIARes(fb);
+    }
+  }
+
+  function showIARes(txt){
+    document.getElementById('iaLoading').style.display='none';
+    document.getElementById('iaResultado').style.display='block';
+    document.getElementById('iaResultado').innerHTML=`<div style="font-size:.72rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Sugestao da IA</div><div class="ia-res-box" contenteditable="true" id="iaBox">${txt.replace(/\n/g,'<br>')}</div><p style="font-size:.74rem;color:var(--gray);margin-top:6px">Edite o texto acima antes de aplicar se quiser.</p>`;
+    document.getElementById('iaFt').style.display='flex';
+    iaRes=txt;
+  }
+  function applyIA(){
+    const box=document.getElementById('iaBox');if(box)iaRes=box.innerText;
+    if(iaCb)iaCb(iaRes);closeIA();toast('Sugestao da IA aplicada!','success');
+  }
+  function closeIA(){document.getElementById('mIA').classList.remove('on');iaCb=null;iaRes=''}
+
+  // ── Premium IA ────────────────────────────────────────────
+  function openPremium(){
+    premData=null;
+    document.getElementById('premInput').style.display='block';
+    document.getElementById('premLoading').style.display='none';
+    document.getElementById('premResult').style.display='none';
+    document.getElementById('premFt').innerHTML=`<button class="btn-ant" onclick="closePremium()" style="flex:1;text-align:center">Cancelar</button><button class="btn-pagar" onclick="gerarPremium()" id="btnGerar" style="flex:1;justify-content:center"><i class="ph-bold ph-lightning"></i> Gerar curriculo</button>`;
+    document.getElementById('mPremium').classList.add('on');
+  }
+  function closePremium(){document.getElementById('mPremium').classList.remove('on')}
+
+  async function gerarPremium(){
+    const nc=document.getElementById('pm-nc').value.trim();
+    const res=document.getElementById('pm-res').value.trim();
+    const loc=document.getElementById('pm-loc').value.trim();
+    if(!res){toast('Escreva um resumo sobre voce.','error');return}
+    document.getElementById('premInput').style.display='none';
+    document.getElementById('premLoading').style.display='block';
+    document.getElementById('premFt').innerHTML='';
+    const prompt=`Gere curriculo completo em JSON (sem markdown). Resume: "${res}". Nome/cargo: "${nc}". Local: "${loc}".
+JSON: {"nome":"","cargo":"","telefone":"","email":"","cidade":"","estado":"","objetivo":"2-3 linhas profissionais","area":"","habilidades":["hab1","hab2","hab3","hab4","hab5"],"idiomas":"Portugues (Nativo)","experiencias":[{"cargo":"","empresa":"","periodo":"","desc":"1 linha"}],"formacao":[{"curso":"","inst":"","periodo":""}]}
+Extraia tudo do resumo. Seja especifico.`;
+    try{
+      const raw=await callIA(prompt,700);
+      premData=JSON.parse(raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim());
+      mostrarResPremium(premData);
+    }catch(e){
+      document.getElementById('premLoading').style.display='none';
+      document.getElementById('premInput').style.display='block';
+      document.getElementById('premFt').innerHTML=`<button class="btn-ant" onclick="closePremium()" style="flex:1;text-align:center">Cancelar</button><button class="btn-pagar" onclick="gerarPremium()" style="flex:1;justify-content:center">Tentar novamente</button>`;
+      toast('Erro ao gerar. Verifique a conexao.','error');
+    }
+  }
+
+  function mostrarResPremium(d){
+    document.getElementById('premLoading').style.display='none';
+    const el=document.getElementById('premResult');el.style.display='block';
+    el.innerHTML=`<div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:10px;padding:12px 14px;margin-bottom:12px"><div style="font-size:.82rem;font-weight:700;color:#3730a3;margin-bottom:3px"><i class="ph ph-check-circle" style="margin-right:4px"></i>Curriculo gerado com sucesso!</div><div style="font-size:.74rem;color:#4338CA">Revise os dados abaixo antes de aplicar.</div></div>
+    <div style="margin-bottom:10px"><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Nome e Cargo</div><div style="background:var(--off);border-radius:7px;padding:10px;font-size:.85rem;color:var(--dark)">${d.nome} — ${d.cargo}</div></div>
+    <div style="margin-bottom:10px"><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Objetivo</div><div style="background:var(--off);border-radius:7px;padding:10px;font-size:.84rem;color:var(--dark);line-height:1.6">${d.objetivo}</div></div>
+    <div style="margin-bottom:10px"><div style="font-size:.68rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Habilidades</div><div style="background:var(--off);border-radius:7px;padding:10px;font-size:.82rem;color:var(--dark)">${(d.habilidades||[]).join(' · ')}</div></div>`;
+    document.getElementById('premFt').innerHTML=`<button class="btn-ant" onclick="closePremium()" style="flex:1;text-align:center">Descartar</button><button class="btn-pagar" onclick="aplicarPremium()" style="flex:1;justify-content:center"><i class="ph-bold ph-check"></i> Aplicar no curriculo</button>`;
+  }
+
+  function aplicarPremium(){
+    if(!premData)return;
+    const d=premData;
+    setV('f-nome',d.nome);setV('f-cargo',d.cargo);setV('f-email',d.email);
+    setV('f-tel',d.telefone);setV('f-cidade',d.cidade);setV('f-estado',d.estado);
+    setV('f-objetivo',d.objetivo);setV('f-area',d.area);setV('f-idiomas',d.idiomas);
+    habs=d.habilidades||[];renderChips();
+    document.getElementById('expContainer').innerHTML='';eC=0;
+    (d.experiencias||[]).forEach(e=>addExp(e));
+    document.getElementById('formContainer').innerHTML='';fC=0;
+    (d.formacao||[]).forEach(f=>addForm(f));
+    closePremium();prev();salvarLocal();
+    toast('Curriculo preenchido pela IA! Revise e ajuste se quiser.','success');
+    goEt(1);
+  }
+
+  // ── Blocos ────────────────────────────────────────────────
+  function addExp(d={}){
+    eC++;const id=eC;
+    const el=document.createElement('div');el.className='bloco';el.id=`exp-${id}`;
+    el.innerHTML=`<div class="bloco-hd"><span class="bloco-num">Experiencia ${id}</span><button class="bloco-del" onclick="del('exp-${id}')"><i class="ph ph-trash"></i> Remover</button></div>
+    <div class="fg2"><div class="form-group"><label>Cargo *</label><input type="text" placeholder="Vendedor" value="${esc(d.cargo||'')}" oninput="auto();prev()"></div><div class="form-group"><label>Empresa</label><input type="text" placeholder="Loja ABC" value="${esc(d.empresa||'')}" oninput="auto();prev()"></div></div>
+    <div class="form-group"><label>Periodo</label><input type="text" placeholder="Jan/2022 - Dez/2023" value="${esc(d.periodo||'')}" oninput="auto();prev()"></div>
+    <div class="form-group"><div class="lrow"><label>Descricao (opcional)</label><button class="ia-btn" onclick="iaExp(${id})"><i class="ph ph-lightbulb"></i> IA</button></div><textarea id="exp-ta-${id}" rows="2" placeholder="Principais responsabilidades..." oninput="auto();prev()">${esc(d.desc||'')}</textarea></div>`;
+    document.getElementById('expContainer').appendChild(el);prev();
+  }
+
+  async function iaExp(id){
+    const bloco=document.getElementById(`exp-${id}`);
+    const ins=bloco.querySelectorAll('input');
+    const cargo_=ins[0]?.value.trim()||'';
+    if(!cargo_){toast('Preencha o cargo antes.','error');return}
+    const emp_=ins[1]?.value.trim()||'';
+    const taEl=document.getElementById(`exp-ta-${id}`);
+    const atual=taEl?.value.trim()||'';
+    toast('IA gerando descricao...','');
+    try{
+      const txt=await callIA(`Escreva descricao de 2 linhas para cargo "${cargo_}"${emp_?` na "${emp_}"`:''}. ${atual?`Atual: "${atual}". Melhore.`:'Crie descricao realista.'} 1a pessoa, simples. Apenas o texto.`,120);
+      if(txt&&taEl){taEl.value=txt;prev();auto();toast('Descricao melhorada!','success')}
+    }catch(e){toast('IA indisponivel. Tente novamente.','error')}
+  }
+
+  function addForm(d={}){
+    fC++;const id=fC;
+    const el=document.createElement('div');el.className='bloco';el.id=`frm-${id}`;
+    el.innerHTML=`<div class="bloco-hd"><span class="bloco-num">Formacao ${id}</span><button class="bloco-del" onclick="del('frm-${id}')"><i class="ph ph-trash"></i> Remover</button></div>
+    <div class="fg2"><div class="form-group"><label>Curso / Grau *</label><input type="text" placeholder="Ensino Medio" value="${esc(d.curso||'')}" oninput="auto();prev()"></div><div class="form-group"><label>Instituicao</label><input type="text" placeholder="IFMA" value="${esc(d.inst||'')}" oninput="auto();prev()"></div></div>
+    <div class="form-group"><label>Periodo</label><input type="text" placeholder="2019 - 2022" value="${esc(d.periodo||'')}" oninput="auto();prev()"></div>`;
+    document.getElementById('formContainer').appendChild(el);prev();
+  }
+
+  function del(id){document.getElementById(id)?.remove();prev();auto()}
+
+  // ── Habilidades ───────────────────────────────────────────
+  function addHab(v){
+    const inp=document.getElementById('f-hab');
+    const txt=(v||inp.value).trim().replace(/,+$/,'');
+    if(!txt||habs.includes(txt)){if(!v)inp.value='';return}
+    habs.push(txt);if(!v)inp.value='';renderChips();auto();prev();
+  }
+  function delHab(h){habs=habs.filter(x=>x!==h);renderChips();auto();prev()}
+  function renderChips(){document.getElementById('hchips').innerHTML=habs.map(h=>`<div class="hchip">${h}<button onclick="delHab('${h.replace(/'/g,"\\'")}')"><i class="ph ph-x" style="font-size:.62rem"></i></button></div>`).join('')}
+  function renderSug(){
+    const area=g('f-area')||'default';
+    const list=SUGE[area]||SUGE['default'];
+    document.getElementById('sugestoes').innerHTML=list.filter(s=>!habs.includes(s)).map(s=>`<button class="sug-btn" onclick="addHab('${s.replace(/'/g,"\\'")}');this.remove()">+ ${s}</button>`).join('');
+  }
+
+  // ── Prévia ao vivo ────────────────────────────────────────
+  function prev(){
+    const nome=g('f-nome')||'',cargo=g('f-cargo')||'',tel=g('f-tel')||'',email=g('f-email')||'',cidade=g('f-cidade')||'',estado=g('f-estado')||'',obj=g('f-objetivo')||'',idiomas=g('f-idiomas')||'',certs=g('f-certs')||'';
+    document.getElementById('cvNome').textContent=nome||'Seu Nome Completo';
+    document.getElementById('cvCargo').textContent=cargo||'Cargo Desejado';
+    document.getElementById('cvObj').textContent=obj||'Preencha o formulario para ver a previa.';
+    const ct=[];if(tel)ct.push(tel);if(email)ct.push(email);const loc=[cidade,estado].filter(Boolean).join(' - ');if(loc)ct.push(loc);
+    document.getElementById('cvContato').innerHTML=ct.map(c=>`<div class="cvp-st">${c}</div>`).join('')||'<div class="cvp-st">—</div>';
+    document.getElementById('cvHabs').innerHTML=habs.length?habs.map(h=>`<div class="cvp-ski"><div class="cvp-skn">${h}</div><div class="cvp-skb"><div class="cvp-skf"></div></div></div>`).join(''):'<div class="cvp-st">—</div>';
+    const idSec=document.getElementById('cvIdiomasSec');
+    if(idiomas){idSec.style.display='';document.getElementById('cvIdiomas').innerHTML=idiomas.split(',').map(i=>`<div class="cvp-id">· ${i.trim()}</div>`).join('')}else idSec.style.display='none';
+    const ceSec=document.getElementById('cvCertsSec');
+    if(certs){ceSec.style.display='';document.getElementById('cvCerts').innerHTML=certs.split(',').map(c=>`<div class="cvp-id">· ${c.trim()}</div>`).join('')}else ceSec.style.display='none';
+    // Experiências
+    const expEl=document.getElementById('cvExps');
+    const expBl=document.querySelectorAll('[id^="exp-"]');
+    if(!expBl.length){expEl.innerHTML='<div style="font-size:8px;color:#9CA3AF;font-style:italic">Adicione na etapa 3.</div>'}
+    else{expEl.innerHTML='';expBl.forEach(b=>{const ins=b.querySelectorAll('input'),ta=document.getElementById(`exp-ta-${b.id.replace('exp-','')}`);const c_=ins[0]?.value.trim(),e_=ins[1]?.value.trim();if(!c_&&!e_)return;expEl.innerHTML+=`<div class="cvp-exp"><div class="cvp-exp-top"><div class="cvp-ec">${c_||''}</div>${ins[2]?.value?`<div class="cvp-ep">${ins[2].value}</div>`:''}</div>${e_?`<div class="cvp-ee">${e_}</div>`:''} ${ta?.value?`<div class="cvp-ed">${ta.value}</div>`:''}</div>`})}
+    // Formação
+    const formEl=document.getElementById('cvForms');
+    const formBl=document.querySelectorAll('[id^="frm-"]');
+    if(!formBl.length){formEl.innerHTML='<div style="font-size:8px;color:#9CA3AF;font-style:italic">Adicione na etapa 4.</div>'}
+    else{formEl.innerHTML='';formBl.forEach(b=>{const ins=b.querySelectorAll('input');const c_=ins[0]?.value.trim();if(!c_)return;formEl.innerHTML+=`<div class="cvp-fi"><div class="cvp-fc">${c_}</div><div class="cvp-fo">${ins[1]?.value||''}${ins[2]?.value?' · '+ins[2].value:''}</div></div>`})}
+    // A4 indicator
+    const expCnt=document.querySelectorAll('[id^="exp-"]').length;
+    const formCnt=document.querySelectorAll('[id^="frm-"]').length;
+    let pct=20;if(obj)pct+=12;pct+=Math.min(expCnt*10,40);pct+=Math.min(formCnt*7,21);pct+=Math.min(habs.length*2,10);if(certs)pct+=5;pct=Math.min(pct,98);
+    const fill=document.getElementById('a4fill');const pctEl=document.getElementById('a4pct');
+    fill.style.width=pct+'%';fill.style.background=pct>90?'#EF4444':pct>75?'#F59E0B':'#16a34a';pctEl.textContent='~'+Math.round(pct)+'%';pctEl.style.color=pct>90?'#EF4444':pct>75?'#F59E0B':'var(--gray)';
+  }
+
+  // ── Auto-save ─────────────────────────────────────────────
+  function auto(){
+    document.getElementById('sdot').className='sdot run';document.getElementById('stxt').textContent='Salvando...';
+    clearTimeout(saveT);saveT=setTimeout(()=>{salvarLocal();document.getElementById('sdot').className='sdot ok';document.getElementById('stxt').textContent='Salvo'},700);
+  }
+  function salvarLocal(){const d=coletar();localStorage.setItem('fpbr_dados',JSON.stringify(d));if(window.saveFB)window.saveFB(d)}
+  function coletar(){
+    const exps=[];document.querySelectorAll('[id^="exp-"]').forEach(b=>{const ins=b.querySelectorAll('input'),ta=document.getElementById(`exp-ta-${b.id.replace('exp-','')}`);exps.push({cargo:ins[0]?.value||'',empresa:ins[1]?.value||'',periodo:ins[2]?.value||'',desc:ta?.value||''})});
+    const forms=[];document.querySelectorAll('[id^="frm-"]').forEach(b=>{const ins=b.querySelectorAll('input');forms.push({curso:ins[0]?.value||'',inst:ins[1]?.value||'',periodo:ins[2]?.value||''})});
+    return{nome:g('f-nome'),cargo:g('f-cargo'),telefone:g('f-tel'),email:g('f-email'),cidade:g('f-cidade'),estado:g('f-estado'),linkedin:g('f-linkedin'),objetivo:g('f-objetivo'),area:g('f-area'),habilidades:habs.join(', '),idiomas:g('f-idiomas'),certs:g('f-certs'),foto:foto64,experiencias:exps,formacao:forms};
+  }
+
+  // ── Restaurar ─────────────────────────────────────────────
+  function restaurar(){
+    const raw=localStorage.getItem('fpbr_dados');if(!raw)return;
+    try{
+      const d=JSON.parse(raw);
+      const s=(id,v)=>{const el=document.getElementById(id);if(el&&v)el.value=v};
+      s('f-nome',d.nome);s('f-cargo',d.cargo);s('f-tel',d.telefone);s('f-email',d.email);s('f-cidade',d.cidade);s('f-estado',d.estado);s('f-linkedin',d.linkedin);s('f-objetivo',d.objetivo);s('f-area',d.area);s('f-idiomas',d.idiomas);s('f-certs',d.certs);
+      if(d.foto){foto64=d.foto;fotoSrc=d.foto;applyFotoUI()}
+      if(d.habilidades){habs=d.habilidades.split(',').map(h=>h.trim()).filter(Boolean);renderChips()}
+      (d.experiencias||[]).forEach(e=>addExp(e));(d.formacao||[]).forEach(f=>addForm(f));
+      prev();document.getElementById('sdot').className='sdot ok';document.getElementById('stxt').textContent='Salvo';
+    }catch(e){}
+  }
+
+  // ── Utils ─────────────────────────────────────────────────
+  function g(id){return document.getElementById(id)?.value?.trim()||''}
+  function foc(id){document.getElementById(id)?.focus()}
+  function setV(id,v){const el=document.getElementById(id);if(el)el.value=v}
+  function esc(s){return(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+  function toast(msg,tipo=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+tipo;void t.offsetWidth;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
+
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeCam();closeIA();closePremium()}});
+
+  // ── Init ──────────────────────────────────────────────────
+  addExp();addForm();restaurar();
+  if(localStorage.getItem('fpbr_recorrente')==='true'){
+    document.getElementById('precoVal').textContent='R$ 1,50';
+    document.getElementById('precoBtn').textContent='1,50';
+    document.getElementById('fidelChip').style.display='inline-block';
+  }
+</script>
+</body>
+</html>
