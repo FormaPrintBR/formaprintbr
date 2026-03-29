@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico FormaPrint BR</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+    body { background: #0f172a; color: #e2e8f0; padding: 20px; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #f59e0b; margin-bottom: 10px; font-size: 28px; }
+    h2 { color: #3b82f6; margin: 30px 0 15px 0; font-size: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 5px; }
+    .check-item { background: #1e293b; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #64748b; }
+    .check-item.success { border-left-color: #10b981; background: #064e3b; }
+    .check-item.error { border-left-color: #ef4444; background: #7f1d1d; }
+    .check-item.warning { border-left-color: #f59e0b; background: #78350f; }
+    .check-item.info { border-left-color: #3b82f6; background: #1e3a8a; }
+    .label { font-weight: bold; color: #94a3b8; margin-bottom: 5px; }
+    .value { color: #e2e8f0; word-break: break-all; }
+    .value code { background: #0f172a; padding: 2px 6px; border-radius: 4px; }
+    .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-left: 10px; }
+    .status.ok { background: #10b981; color: white; }
+    .status.fail { background: #ef4444; color: white; }
+    .status.warn { background: #f59e0b; color: black; }
+    button { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin: 10px 5px 10px 0; }
+    button:hover { background: #2563eb; }
+    .output { background: #0f172a; padding: 20px; border-radius: 8px; margin-top: 20px; white-space: pre-wrap; overflow-x: auto; }
+    .progress { background: #1e293b; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .progress-bar { background: #3b82f6; height: 30px; border-radius: 4px; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+    summary { cursor: pointer; color: #60a5fa; padding: 10px; background: #1e293b; border-radius: 8px; margin: 10px 0; }
+    summary:hover { background: #334155; }
+    details { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Diagnóstico FormaPrint BR</h1>
+    <p style="color: #94a3b8; margin-bottom: 20px;">Verificação completa de configurações e erros</p>
+    
+    <button onclick="runDiagnostics()">🚀 Iniciar Diagnóstico Completo</button>
+    <button onclick="checkFirebaseConfig()">🔥 Verificar Firebase</button>
+    <button onclick="checkFiles()">📁 Verificar Arquivos</button>
+    <button onclick="clearResults()">🗑️ Limpar Resultados</button>
+
+    <div id="progress" class="progress" style="display: none;">
+      <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+    </div>
+
+    <div id="results"></div>
+
+    <details>
+      <summary><strong>📋 Como usar este diagnóstico</strong></summary>
+      <div style="background: #1e293b; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <ol style="margin-left: 20px;">
+          <li>Abra este arquivo no navegador: <code>formaprintbr.pages.dev/diagnostico.html</code></li>
+          <li>Clique em "🚀 Iniciar Diagnóstico Completo"</li>
+          <li>Aguarde a verificação de todos os itens</li>
+          <li>Verifique os itens marcados como ❌ ERRO e ⚠️ ATENÇÃO</li>
+          <li>Corrija os problemas no GitHub</li>
+          <li>Rode o diagnóstico novamente para verificar se foi corrigido</li>
+        </ol>
+      </div>
+    </details>
+  </div>
+
+  <script>
+    // Configurações esperadas
+    const EXPECTED_CONFIG = {
+      firebaseApiKey: 'AIzaSyBH-QWEWiANHgDYbCCSlNfAyr-FtOuW8jw',
+      firebaseAuthDomain: 'formaprint-br.firebaseapp.com',
+      firebaseProjectId: 'formaprint-br',
+      siteUrl: 'formaprintbr.pages.dev'
+    };
+
+    let results = [];
+    let totalChecks = 0;
+    let currentCheck = 0;
+
+    function updateProgress() {
+      const percent = Math.round((currentCheck / totalChecks) * 100);
+      document.getElementById('progressBar').style.width = percent + '%';
+      document.getElementById('progressBar').textContent = percent + '%';
+    }
+
+    function addResult(type, title, message, details = '') {
+      const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+      
+      const div = document.createElement('div');
+      div.className = `check-item ${type}`;
+      div.innerHTML = `
+        <div class="label">${icons[type]} ${title}</div>
+        <div class="value">${message}</div>
+        ${details ? `<div style="margin-top: 8px; font-size: 12px; color: #94a3b8;">${details}</div>` : ''}
+      `;
+      
+      document.getElementById('results').appendChild(div);
+      results.push({ type, title, message });
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      results = [];
+      document.getElementById('progress').style.display = 'none';
+    }
+
+    async function runDiagnostics() {
+      clearResults();
+      document.getElementById('progress').style.display = 'block';
+      
+      totalChecks = 15;
+      currentCheck = 0;
+      
+      addResult('info', '🚀 Iniciando diagnóstico...', 'Verificando todas as configurações do projeto');
+      
+      // 1. Verificar Firebase
+      currentCheck++;
+      updateProgress();
+      await checkFirebaseConfig();
+      
+      // 2. Verificar arquivos HTML
+      currentCheck++;
+      updateProgress();
+      await checkFiles();
+      
+      // 3. Verificar imports
+      currentCheck++;
+      updateProgress();
+      await checkImports();
+      
+      // 4. Verificar localStorage
+      currentCheck++;
+      updateProgress();
+      checkLocalStorage();
+      
+      // 5. Verificar console errors
+      currentCheck++;
+      updateProgress();
+      checkConsoleErrors();
+      
+      // 6. Verificar estrutura de pastas
+      currentCheck++;
+      updateProgress();
+      await checkFolderStructure();
+      
+      // 7. Verificar configurações do Mercado Pago
+      currentCheck++;
+      updateProgress();
+      checkMercadoPago();
+      
+      // 8. Verificar EmailJS
+      currentCheck++;
+      updateProgress();
+      checkEmailJS();
+      
+      // 9. Verificar Anthropic API
+      currentCheck++;
+      updateProgress();
+      checkAnthropicAPI();
+      
+      // 10. Verificar Canva SDK
+      currentCheck++;
+      updateProgress();
+      checkCanvaSDK();
+      
+      // 11. Verificar conexões
+      currentCheck++;
+      updateProgress();
+      await checkConnections();
+      
+      // 12. Verificar permissões
+      currentCheck++;
+      updateProgress();
+      checkPermissions();
+      
+      // 13. Verificar versão do Firebase
+      currentCheck++;
+      updateProgress();
+      checkFirebaseVersion();
+      
+      // 14. Verificar autenticação
+      currentCheck++;
+      updateProgress();
+      await checkAuthentication();
+      
+      // 15. Resumo final
+      currentCheck++;
+      updateProgress();
+      showSummary();
+    }
+
+    async function checkFirebaseConfig() {
+      addResult('info', '🔥 Verificando Firebase...', 'Analisando configuração do Firebase');
+      
+      try {
+        // Verificar se Firebase está importado
+        if (typeof firebase !== 'undefined') {
+          addResult('success', 'Firebase SDK carregado', 'Biblioteca do Firebase está disponível');
+        } else {
+          // Tenta verificar via modules
+          try {
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+            addResult('success', 'Firebase modules disponíveis', 'Imports ES6 funcionando corretamente');
+          } catch (e) {
+            addResult('error', 'Firebase não carregado', 'SDK do Firebase não foi importado corretamente', 
+              `Erro: ${e.message}<br><br>Solução: Verifique se os imports estão corretos no login.html`);
+          }
+        }
+        
+        // Verificar API Key
+        const firebaseConfig = {
+          apiKey: "AIzaSyBH-QWEWiANHgDYbCCSlNfAyr-FtOuW8jw",
+          authDomain: "formaprint-br.firebaseapp.com",
+          projectId: "formaprint-br",
+          storageBucket: "formaprint-br.firebasestorage.app",
+          messagingSenderId: "483317627076",
+          appId: "1:483317627076:web:0cf9ed3165085f7671b191"
+        };
+        
+        if (firebaseConfig.apiKey === EXPECTED_CONFIG.firebaseApiKey) {
+          addResult('success', 'API Key correta', `API Key: ${firebaseConfig.apiKey.substring(0, 15)}...`);
+        } else {
+          addResult('error', 'API Key incorreta!', 'A API Key do Firebase não corresponde à configurada', 
+            `Esperado: ${EXPECTED_CONFIG.firebaseApiKey}<br>Encontrado: ${firebaseConfig.apiKey}`);
+        }
+        
+        if (firebaseConfig.authDomain === EXPECTED_CONFIG.firebaseAuthDomain) {
+          addResult('success', 'Auth Domain correto', `Domain: ${firebaseConfig.authDomain}`);
+        } else {
+          addResult('error', 'Auth Domain incorreto!', `Esperado: ${EXPECTED_CONFIG.firebaseAuthDomain}<br>Encontrado: ${firebaseConfig.authDomain}`);
+        }
+        
+      } catch (error) {
+        addResult('error', 'Erro ao verificar Firebase', error.message);
+      }
+    }
+
+    async function checkFiles() {
+      addResult('info', '📁 Verificando arquivos HTML...', 'Checando existência dos arquivos principais');
+      
+      const files = [
+        'index.html',
+        'pages/login.html',
+        'pages/editor.html',
+        'pages/pagamento.html',
+        'pages/personalizador.html',
+        'pages/vagas.html',
+        'pages/verificador.html'
+      ];
+      
+      for (const file of files) {
+        try {
+          const response = await fetch(file, { method: 'HEAD' });
+          if (response.ok) {
+            addResult('success', `Arquivo encontrado: ${file}`, `Status: ${response.status}`);
+          } else {
+            addResult('error', `Arquivo não encontrado: ${file}`, `Status: ${response.status}`);
+          }
+        } catch (e) {
+          addResult('warning', `Erro ao verificar: ${file}`, e.message);
+        }
+      }
+    }
+
+    async function checkImports() {
+      addResult('info', '📦 Verificando imports de scripts...', 'Checando se bibliotecas externas estão carregando');
+      
+      const scripts = [
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js',
+        'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js',
+        'https://unpkg.com/@phosphor-icons/web'
+      ];
+      
+      for (const script of scripts) {
+        try {
+          const response = await fetch(script, { method: 'HEAD' });
+          if (response.ok) {
+            addResult('success', `Script carregado: ${script.split('/').pop()}`, 'Biblioteca disponível');
+          } else {
+            addResult('error', `Script falhou: ${script.split('/').pop()}`, `Status: ${response.status}`);
+          }
+        } catch (e) {
+          addResult('error', `Erro ao carregar script`, `${script}<br>${e.message}`);
+        }
+      }
+    }
+
+    function checkLocalStorage() {
+      addResult('info', '💾 Verificando localStorage...', 'Checando dados salvos no navegador');
+      
+      try {
+        localStorage.setItem('test_diagnostico', 'ok');
+        localStorage.removeItem('test_diagnostico');
+        addResult('success', 'localStorage funcionando', 'Navegador permite armazenamento local');
+        
+        const userLoggedIn = localStorage.getItem('userLoggedIn');
+        if (userLoggedIn === 'true') {
+          addResult('success', 'Usuário logado', 'Sessão ativa encontrada');
+        } else {
+          addResult('info', 'Nenhum usuário logado', 'Faça login para testar funcionalidades completas');
+        }
+      } catch (e) {
+        addResult('error', 'localStorage bloqueado', e.message);
+      }
+    }
+
+    function checkConsoleErrors() {
+      addResult('info', '🐛 Verificando erros no console...', 'Analisando logs de erro');
+      
+      // Verificar se há erros registrados
+      const errors = [];
+      window.onerror = function(msg, url, line) {
+        errors.push({ msg, url, line });
+      };
+      
+      if (errors.length > 0) {
+        errors.forEach(err => {
+          addResult('error', 'Erro JavaScript detectado', 
+            `Mensagem: ${err.msg}<br>Arquivo: ${err.url}<br>Linha: ${err.line}`);
+        });
+      } else {
+        addResult('success', 'Nenhum erro crítico no console', 'Código JavaScript executando sem erros');
+      }
+    }
+
+    async function checkFolderStructure() {
+      addResult('info', '📂 Verificando estrutura de pastas...', 'Checando se as pastas estão no lugar certo');
+      
+      const folders = ['css', 'js', 'pages'];
+      
+      for (const folder of folders) {
+        try {
+          const response = await fetch(`${folder}/`, { method: 'HEAD' });
+          if (response.ok || response.status === 403) {
+            addResult('success', `Pasta encontrada: ${folder}/`, 'Estrutura de diretórios correta');
+          } else {
+            addResult('warning', `Pasta pode não existir: ${folder}/`, `Status: ${response.status}`);
+          }
+        } catch (e) {
+          addResult('warning', `Não foi possível verificar: ${folder}/`, e.message);
+        }
+      }
+    }
+
+    function checkMercadoPago() {
+      addResult('info', '💰 Verificando Mercado Pago...', 'Checando configuração de pagamentos');
+      
+      // Verificar se estamos na página de pagamento
+      if (window.location.href.includes('pagamento.html')) {
+        addResult('info', 'Página de pagamento', 'Você está na página de pagamento');
+        
+        // Verificar variáveis do Mercado Pago
+        if (typeof LINKS_MP !== 'undefined') {
+          addResult('success', 'Variáveis do Mercado Pago encontradas', 'Links de pagamento configurados');
+        } else {
+          addResult('warning', 'Variáveis do Mercado Pago não encontradas', 
+            'Verifique se LINKS_MP está definido em pagamento.html<br><br>' +
+            'Exemplo esperado:<br>' +
+            '<code>const LINKS_MP = {<br>' +
+            '&nbsp;&nbsp;pix_250: "https://...",<br>' +
+            '&nbsp;&nbsp;cartao_250: "https://..."<br>' +
+            '}</code>');
+        }
+      } else {
+        addResult('info', 'Verificação pendente', 'Acesse pages/pagamento.html para verificar configuração completa');
+      }
+    }
+
+    function checkEmailJS() {
+      addResult('info', '📧 Verificando EmailJS...', 'Checando configuração de envio de emails');
+      
+      if (window.location.href.includes('vagas.html')) {
+        const emailJsVars = [
+          'EMAILJS_PUBLIC_KEY',
+          'EMAILJS_SERVICE_ID',
+          'EMAILJS_TEMPLATE_ID'
+        ];
+        
+        let allConfigured = true;
+        emailJsVars.forEach(v => {
+          if (typeof window[v] === 'undefined') {
+            allConfigured = false;
+            addResult('warning', `${v} não configurado`, 'Adicione sua chave do EmailJS');
+          }
+        });
+        
+        if (allConfigured) {
+          addResult('success', 'EmailJS configurado', 'Todas as chaves do EmailJS estão presentes');
+        }
+      } else {
+        addResult('info', 'Verificação pendente', 'Acesse pages/vagas.html para verificar EmailJS');
+      }
+    }
+
+    function checkAnthropicAPI() {
+      addResult('info', '🤖 Verificando Anthropic API (IA)...', 'Checando configuração da IA');
+      
+      if (window.location.href.includes('editor.html')) {
+        if (typeof ANTHROPIC_API_KEY !== 'undefined') {
+          const key = ANTHROPIC_API_KEY;
+          if (key && key.length > 10) {
+            addResult('success', 'Chave da Anthropic configurada', `API Key: ${key.substring(0, 10)}...`);
+          } else {
+            addResult('warning', 'Chave da Anthropic inválida', 'Verifique se a API Key está correta');
+          }
+        } else {
+          addResult('warning', 'Chave da Anthropic não encontrada', 
+            'A IA não funcionará sem a API Key<br>' +
+            'Adicione em editor.html:<br>' +
+            '<code>const ANTHROPIC_API_KEY = "sua-chave-aqui";</code>');
+        }
+      } else {
+        addResult('info', 'Verificação pendente', 'Acesse pages/editor.html para verificar configuração da IA');
+      }
+    }
+
+    function checkCanvaSDK() {
+      addResult('info', '🎨 Verificando Canva SDK...', 'Checando integração com Canva');
+      
+      if (window.location.href.includes('personalizador.html')) {
+        if (typeof CANVA_API_KEY !== 'undefined') {
+          addResult('success', 'Canva SDK configurado', 'Integração com Canva disponível');
+        } else {
+          addResult('info', 'Canva SDK não configurado', 
+            'Opcional - botão do Canva não aparecerá<br>' +
+            'Para ativar, adicione em personalizador.html:<br>' +
+            '<code>const CANVA_API_KEY = "sua-chave";</code>');
+        }
+      }
+    }
+
+    async function checkConnections() {
+      addResult('info', '🌐 Verificando conexões de rede...', 'Testando conectividade');
+      
+      const urls = [
+        'https://www.google.com',
+        'https://www.gstatic.com',
+        'https://api.mercadopago.com'
+      ];
+      
+      for (const url of urls) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3000);
+          
+          await fetch(url, { 
+            method: 'HEAD', 
+            mode: 'no-cors',
+            signal: controller.signal 
+          });
+          
+          clearTimeout(timeout);
+          addResult('success', `Conexão OK: ${url}`, 'Servidor acessível');
+        } catch (e) {
+          addResult('warning', `Conexão lenta/bloqueada: ${url}`, e.message);
+        }
+      }
+    }
+
+    function checkPermissions() {
+      addResult('info', '🔐 Verificando permissões do navegador...', 'Checando permissões necessárias');
+      
+      // Verificar permissão de câmera
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'camera' }).then(result => {
+          if (result.state === 'granted') {
+            addResult('success', 'Permissão de câmera concedida', 'Foto 3x4 funcionará');
+          } else if (result.state === 'prompt') {
+            addResult('info', 'Permissão de câmera pendente', 'Será solicitada ao usar a câmera');
+          } else {
+            addResult('error', 'Permissão de câmera negada', 'Usuário bloqueou acesso à câmera');
+          }
+        });
+      }
+      
+      // Verificar HTTPS
+      if (window.location.protocol === 'https:') {
+        addResult('success', 'Conexão segura (HTTPS)', 'Seu site está usando HTTPS');
+      } else {
+        addResult('warning', 'Conexão não segura (HTTP)', 'Algumas funcionalidades podem não funcionar sem HTTPS');
+      }
+    }
+
+    function checkFirebaseVersion() {
+      addResult('info', '📌 Verificando versão do Firebase...', 'Checando compatibilidade');
+      
+      const expectedVersion = '10.7.1';
+      const scriptTags = document.querySelectorAll('script[src*="firebase"]');
+      
+      let foundVersion = false;
+      scriptTags.forEach(script => {
+        const src = script.src;
+        if (src.includes(expectedVersion)) {
+          foundVersion = true;
+          addResult('success', `Versão correta do Firebase`, `v${expectedVersion} encontrada`);
+        }
+      });
+      
+      if (!foundVersion && scriptTags.length > 0) {
+        addResult('warning', 'Versão do Firebase diferente', 
+          `Esperado: v${expectedVersion}<br>` +
+          'Verifique se está usando a versão mais recente');
+      } else if (scriptTags.length === 0) {
+        addResult('info', 'Firebase via modules', 'Usando import ES6 (modo moderno)');
+      }
+    }
+
+    async function checkAuthentication() {
+      addResult('info', ' Verificando autenticação...', 'Testando login e registro');
+      
+      // Verificar se Firebase Auth está disponível
+      try {
+        // Tenta verificar se as funções de auth existem
+        const hasAuthMethods = 
+          typeof window.loginWithGoogle === 'function' ||
+          document.querySelector('button[onclick*="loginWithGoogle"]') !== null;
+        
+        if (hasAuthMethods) {
+          addResult('success', 'Funções de autenticação encontradas', 'Login com Google disponível');
+        } else {
+          addResult('error', 'Funções de autenticação não encontradas', 
+            'Verifique se login.html está carregando o Firebase corretamente<br>' +
+            'O botão "Entrar com Google" deve chamar loginWithGoogle()');
+        }
+      } catch (e) {
+        addResult('error', 'Erro ao verificar autenticação', e.message);
+      }
+    }
+
+    function showSummary() {
+      const success = results.filter(r => r.type === 'success').length;
+      const errors = results.filter(r => r.type === 'error').length;
+      const warnings = results.filter(r => r.type === 'warning').length;
+      const info = results.filter(r => r.type === 'info').length;
+      
+      setTimeout(() => {
+        const summary = document.createElement('div');
+        summary.style.cssText = 'background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px; border-radius: 12px; margin-top: 30px; border: 2px solid #3b82f6;';
+        summary.innerHTML = `
+          <h2 style="color: #f59e0b; margin-top: 0; border: none;">📊 Resumo do Diagnóstico</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+            <div style="background: #064e3b; padding: 20px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; color: #10b981; font-weight: bold;">${success}</div>
+              <div style="color: #94a3b8;">✅ Sucessos</div>
+            </div>
+            <div style="background: #7f1d1d; padding: 20px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; color: #ef4444; font-weight: bold;">${errors}</div>
+              <div style="color: #94a3b8;">❌ Erros</div>
+            </div>
+            <div style="background: #78350f; padding: 20px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; color: #f59e0b; font-weight: bold;">${warnings}</div>
+              <div style="color: #94a3b8;">⚠️ Alertas</div>
+            </div>
+            <div style="background: #1e3a8a; padding: 20px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 32px; color: #3b82f6; font-weight: bold;">${info}</div>
+              <div style="color: #94a3b8;">ℹ️ Informações</div>
+            </div>
+          </div>
+          ${errors > 0 ? `
+            <div style="margin-top: 20px; padding: 15px; background: #7f1d1d; border-radius: 8px; border-left: 4px solid #ef4444;">
+              <strong style="color: #fca5a5;">⚠️ Atenção:</strong> 
+              <span style="color: #e2e8f0;">Existem ${errors} erro(s) que precisam ser corrigidos antes do site funcionar corretamente.</span>
+            </div>
+          ` : ''}
+          ${errors === 0 && warnings > 0 ? `
+            <div style="margin-top: 20px; padding: 15px; background: #78350f; border-radius: 8px; border-left: 4px solid #f59e0b;">
+              <strong style="color: #fcd34d;">⚠️ Quase lá:</strong> 
+              <span style="color: #e2e8f0;">Nenhum erro crítico, mas ${warnings} alerta(s) podem afetar algumas funcionalidades.</span>
+            </div>
+          ` : ''}
+          ${errors === 0 && warnings === 0 ? `
+            <div style="margin-top: 20px; padding: 15px; background: #064e3b; border-radius: 8px; border-left: 4px solid #10b981;">
+              <strong style="color: #6ee7b7;">🎉 Parabéns!</strong> 
+              <span style="color: #e2e8f0;">Todas as verificações passaram! Seu site está configurado corretamente.</span>
+            </div>
+          ` : ''}
+          <div style="margin-top: 20px; text-align: center;">
+            <button onclick="window.print()" style="background: #10b981;">📄 Imprimir/Salvar Relatório</button>
+            <button onclick="location.reload()" style="background: #3b82f6;">🔄 Rodar Novamente</button>
+          </div>
+        `;
+        
+        document.getElementById('results').appendChild(summary);
+        document.getElementById('progressBar').textContent = 'Concluído!';
+      }, 500);
+    }
+
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      console.log('🔍 Diagnóstico carregado. Clique em "Iniciar Diagnóstico Completo" para começar.');
+    });
+  </script>
+</body>
+</html>
